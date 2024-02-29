@@ -40,7 +40,7 @@ jobs:
 
   test:
     name: ☔️ Tests
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: setup_env
 
     # Setup postgres service for tests
@@ -101,7 +101,7 @@ jobs:
 
   build:
     name: 🔨 Build Binaries and Docker Image
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: setup_env
 
     env:
@@ -178,7 +178,7 @@ jobs:
 
   deploy_prod:
     name: 🚀 Deploy Apps (PROD)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs:
       - setup_env
       - test
