@@ -1,19 +1,23 @@
-# Should be built from root directory of the workspace
-FROM golang:1.20-buster as builder
+FROM golang:1.20.0 AS build
 
-WORKDIR /app
+WORKDIR /workdir
 
-ADD . .
-RUN cd server && go build -ldflags '-s -w' -o /app/sc-go-server
+COPY go.mod ./
 
-FROM debian:buster-slim
+RUN go mod download
 
-RUN set -x && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  ca-certificates && \
-  rm -rf /var/lib/apt/lists/*
+COPY . ./
 
-COPY --from=builder /app/sc-go-server /app/server
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-w -s' -o /app ./server/app.go
+
+FROM gcr.io/distroless/base-debian12 AS release
+
+WORKDIR /
+
+COPY --from=build /app /app
 
 EXPOSE 13337
 
-CMD ["/app/server"]
+USER nonroot:nonroot
+
+CMD ["/app"]
