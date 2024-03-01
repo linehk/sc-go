@@ -1,5 +1,5 @@
 # Docker file for github actions CI build
-FROM linehk/ubuntu:22.04
+FROM ubuntu:22.04
 
 COPY ./auth/authapi /app/authapi
 
