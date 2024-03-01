@@ -1,5 +1,5 @@
 # Docker file for github actions CI build
-FROM stablecog/ubuntu:22.04
+FROM linehk/ubuntu:22.04
 
 COPY ./server/server /app/server
 COPY ./cron/cron /app/cron
