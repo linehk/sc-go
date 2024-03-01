@@ -5,15 +5,22 @@ on:
     branches: [master]
 
 concurrency:
+  # github.ref 表示触发工作流的分支或引用
+  # 对于同一个分支或标签，最多只能同时运行一个作业。
   group: environment-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   setup_env:
     name: ⚙️ Setup environment
+    # runs-on: self-hosted
+    # 表示运行在自托管运行器，需要在 github 上 Actions 下的 Runners 自己设置
+    # 通过运行脚本来提供服务器
     runs-on: ubuntu-latest
     steps:
       - name: Add SHORT_SHA env property
+        # 从预定义的 GITHUB_SHA 中提取信息写到 $GITHUB_ENV 中
+        # 然后就可以通过 env.SHORT_SHA 来使用
         run: echo "SHORT_SHA=`echo ${GITHUB_SHA::7}`" >> $GITHUB_ENV
 
       - name: Put commit msg in environment
@@ -46,8 +53,10 @@ jobs:
     # Setup postgres service for tests
     services:
       db:
+        # 直接启动一个镜像
         image: postgres:14
         env:
+          # 使用的数据库名为 testing
           POSTGRES_DB: testing
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -68,11 +77,15 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version-file: ./go.work
+          # | 符号表示多行文本
+          # 这表示将所有目录下的 go.sum 文件包含在缓存中。
+          # go.sum 已经包含了版本号
           cache-dependency-path: |
             **/go.sum
 
       - name: Run Tests
         env:
+          # 传入环境变量，可能代码里面做了一些判断
           GITHUB_ACTIONS: true
           POSTGRES_DB: testing
           POSTGRES_PORT: 5432
@@ -90,9 +103,13 @@ jobs:
 
       - name: Send Discord Webhook
         if: failure()
+        # 发送测试结果到 discord
         uses: ./.github/actions/discord-webhook
+        # secrets 不能在 composite 类型的 actions 里面使用，如：.github/actions/discord-webhook
+        # 通过 with 传入参数，对应新文件里面的 inputs
         with:
           context: prod
+          # secrets 在存储库的 settings -> Secrets and variables 中设置
           prod-webhook-url: ${{ secrets.DISCORD_WEBHOOK_PROD }}
           qa-webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
           embed-color: 15548997
@@ -105,11 +122,13 @@ jobs:
     needs: setup_env
 
     env:
+      # 存储库中运行的每个工作流程的唯一编号。
       GITHUB_RUN_ID: ${{ github.run_id }}
     steps:
       - uses: actions/checkout@v3
 
       - name: Set build start in env variable
+        # BUILD_START 开始时间
         run: echo "BUILD_START=$(date +%s)" >> $GITHUB_ENV
 
       - name: Send Discord Webhook
@@ -162,8 +181,9 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          # ./Dockerfile.ci：复制各个模块的二进制文件，然后运行 server
           file: ./Dockerfile.ci
-          tags: stablecog/sc-server:${{ needs.setup_env.outputs.branch_name }}-${{ env.GITHUB_RUN_ID }}
+          tags: linehk/sc-server:${{ needs.setup_env.outputs.branch_name }}-${{ env.GITHUB_RUN_ID }}
 
       - name: Send Discord Webhook
         if: failure()
@@ -188,10 +208,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # 部署到 k8s
       - name: Deploy
         uses: ./.github/actions/k8s-deploy-aks
         with:
-          image: stablecog/sc-server:${{ needs.setup_env.outputs.branch_name}}-${{ env.GITHUB_RUN_ID }}
+          image: linehk/sc-server:${{ needs.setup_env.outputs.branch_name}}-${{ env.GITHUB_RUN_ID }}
           embed-title: "${{ needs.setup_env.outputs.commit_msg }}  •  ${{ needs.setup_env.outputs.short_sha }}"
           prod-webhook-url: ${{ secrets.DISCORD_WEBHOOK_PROD }}
           qa-webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
